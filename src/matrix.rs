@@ -1,14 +1,20 @@
 use std::ops::{Add, Mul};
 
-pub trait Value: Add<Output = Self> + Mul<Output = Self> + Copy + Default {
+pub trait Value: Add<Output = Self> + Mul<Output = Self> + Copy + Default + std::cmp::PartialEq {
 }
 
-impl <T: Add<Output = T> + Mul<Output = T> + Copy + Default> Value for T {
+impl <T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::cmp::PartialEq> Value for T {
 }
 
 #[derive(Debug)]
 pub struct Matrix<T: Value, const R: usize, const C: usize> {
     values: [[T; C]; R],
+}
+
+impl<T: Value, const R: usize, const C: usize> PartialEq<Matrix<T, R, C>> for Matrix<T, R, C> {
+    fn eq(&self, other: &Matrix<T, R, C>) -> bool {
+        return self.values == other.values;
+    }
 }
 
 impl<T: Value, const R: usize, const C: usize> Matrix<T, R, C> {
@@ -92,5 +98,18 @@ impl <T: Value, const R: usize, const C: usize, const K: usize> Mul<Matrix<T, R,
         }
 
         Matrix { values }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scalar_addition() {
+        let mat = Matrix::new([[1, 2, 3], [4, 5, 6]]);
+        let result = mat + 2;
+
+        assert_eq!(result, Matrix::new([[3, 4, 5], [6, 7, 8]]));
     }
 }
