@@ -1,22 +1,20 @@
+use std::ops::{Add, Mul};
+
+pub trait Value: Add<Output = Self> + Mul<Output = Self> + Copy {
+}
+
+impl <T: Add<Output = T> + Mul<Output = T> + Copy> Value for T {
+}
+
 #[derive(Debug)]
-pub struct Matrix {
-    data: Vec<f32>,
-    dimensions: Vec<usize>,
+pub struct Matrix<T: Value, const R: usize, const C: usize> {
+    data: [[T; R]; C],
 }
 
-pub fn new_matrix(data: Vec<f32>, dimensions: Vec<usize>) -> Matrix {
-    let size = dimensions.iter().fold(1, |acc, num| { acc * num});
-    assert_eq!(size, data.len());
-    Matrix {
-        data,
-        dimensions
-    }
-}
-
-pub fn new_vector(data: Vec<f32>) -> Matrix {
-    let size = data.len();
-    Matrix {
-        data,
-        dimensions: vec![size],
+impl<T: Value, const R: usize, const C: usize> Matrix<T, R, C> {
+    pub fn new(data: [[T; R]; C]) -> Self {
+        Matrix {
+            data
+        }
     }
 }
