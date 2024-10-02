@@ -6,6 +6,10 @@ pub struct DenseLayer<const INPUTS: usize, const NEURONS: usize> {
     biases: Matrix<f32, 1, NEURONS>,
 }
 
+pub fn relu_activate<const C: usize, const R: usize>(matrix: &mut Matrix<f32, R, C>) {
+    matrix.transform(| val | { if val > 0.0 { val } else { 0.0 } });
+}
+
 impl<const INPUTS: usize, const NEURONS: usize> DenseLayer<INPUTS, NEURONS> {
     pub fn new() -> Self {
         DenseLayer {

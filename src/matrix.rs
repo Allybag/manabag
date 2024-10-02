@@ -59,7 +59,7 @@ impl<T: Value, const R: usize, const C: usize> Matrix<T, R, C> {
         }
     }
 
-    pub fn transpose(&self) -> Matrix<T, C, R> {
+    pub fn transpose(self) -> Matrix<T, C, R> {
         let mut values = [[T::default(); R]; C];
 
         for col in 0..C {
@@ -69,6 +69,14 @@ impl<T: Value, const R: usize, const C: usize> Matrix<T, R, C> {
         }
 
         Matrix { values }
+    }
+
+    pub fn transform(&mut self, f: fn(T) -> T) {
+        for col in 0..C {
+            for row in 0..R {
+                self.values[row][col] = f(self.values[row][col]);
+            }
+        }
     }
  }
 
