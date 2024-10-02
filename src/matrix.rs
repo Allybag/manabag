@@ -1,5 +1,9 @@
 use std::ops::{Add, Mul};
 
+pub enum Assert<const CHECK: bool> {}
+pub trait IsTrue {}
+impl IsTrue for Assert<true> {}
+
 pub trait Numeric: Add<Output = Self> + Mul<Output = Self> + Sized {
 }
 
@@ -12,7 +16,8 @@ pub trait Value: Numeric + Copy + Default + std::cmp::PartialOrd {
 impl <T: Numeric + Copy + Default + std::cmp::PartialOrd> Value for T {
 }
 
-#[derive(Debug)]
+// TODO: We definitely should not be regularly copying matrices
+#[derive(Debug, Clone, Copy)]
 pub struct Matrix<T: Value, const R: usize, const C: usize> {
     values: [[T; C]; R],
 }
@@ -98,7 +103,24 @@ impl <T: Value, const R: usize, const C: usize> Mul<T> for Matrix<T, R, C> {
     }
 }
 
-impl <T: Value, const R: usize, const C: usize> Add<Matrix<T, R, C>> for Matrix<T, R, C> {
+impl <T: Value, const R: usize, const C: usize> Add<Matrix<T, 1, C>> for Matrix<T, R, C> {
+    type Output = Matrix<T, R, C>;
+
+    fn add(self, other: Matrix<T, 1, C>) -> Self::Output {
+        let mut values = [[T::default(); C]; R];
+
+        for col in 0..C {
+            for row in 0..R {
+                values[row][col] = self.values[row][col] + other.values[0][col];            }
+        }
+
+        Matrix { values }
+    }
+}
+
+impl <T: Value, const R: usize, const C: usize> Add<Matrix<T, R, C>> for Matrix<T, R, C> where
+    Assert<{R != 1}> : IsTrue,
+{
     type Output = Matrix<T, R, C>;
 
     fn add(self, other: Matrix<T, R, C>) -> Self::Output {
@@ -113,7 +135,7 @@ impl <T: Value, const R: usize, const C: usize> Add<Matrix<T, R, C>> for Matrix<
     }
 }
 
-impl <T: Value + std::fmt::Display, const R: usize, const C: usize, const K: usize> Mul<Matrix<T, R, K>> for Matrix<T, K, C> {
+impl <T: Value, const R: usize, const C: usize, const K: usize> Mul<Matrix<T, R, K>> for Matrix<T, K, C> {
     type Output = Matrix<T, R, C>;
 
     fn mul(self, other: Matrix<T, R, K>) -> Self::Output {
