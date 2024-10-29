@@ -1,17 +1,23 @@
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
-use dense_layer::{relu_activate, DenseLayer};
-use spiral_data::{weights, X};
+use crate::matrix::Matrix;
+use dense_layer::{Activation, DenseLayer};
+use spiral_data::{*};
 
 pub mod matrix;
 pub mod dense_layer;
 pub mod spiral_data;
 
 fn main() {
-    let mut dense = DenseLayer::<2, 3>::new();
-    dense.set_weights(weights);
-    let mut output = dense.forward(X);
-    relu_activate(&mut output);
+    let mut dense_one = DenseLayer::<2, 3>::new();
+    dense_one.set_weights(LAYER_ONE_WEIGHTS);
 
-    println!("Output: {output:?}")
+    let mut dense_two = DenseLayer::<3, 3>::new();
+    dense_two.set_weights(LAYER_TWO_WEIGHTS);
+    dense_two.set_activation(Activation::Softmax);
+
+    let inputs = Matrix::new(X);
+    let output = dense_two.output(dense_one.output(inputs));
+
+    output.print_head();
 }

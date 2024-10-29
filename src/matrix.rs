@@ -4,10 +4,10 @@ pub enum Assert<const CHECK: bool> {}
 pub trait IsTrue {}
 impl IsTrue for Assert<true> {}
 
-pub trait Numeric: Add<Output = Self> + Mul<Output = Self> + Sized {
+pub trait Numeric: Add<Output = Self> + Mul<Output = Self> + Sized + std::fmt::Debug {
 }
 
-impl <T> Numeric for T where T: Add<Output = T> + Mul<Output = T> + Sized {
+impl <T> Numeric for T where T: Add<Output = T> + Mul<Output = T> + Sized + std::fmt::Debug {
 }
 
 pub trait Value: Numeric + Copy + Default + std::cmp::PartialOrd {
@@ -72,11 +72,22 @@ impl<T: Value, const R: usize, const C: usize> Matrix<T, R, C> {
     }
 
     pub fn transform(&mut self, f: fn(T) -> T) {
-        for col in 0..C {
-            for row in 0..R {
+        for row in 0..R {
+            for col in 0..C {
                 self.values[row][col] = f(self.values[row][col]);
             }
         }
+    }
+
+    pub fn row_transform(&mut self, f: fn([T; C]) -> [T; C]) {
+        for row in 0..R {
+            self.values[row] = f(self.values[row]);
+        }
+    }
+
+    pub fn print_head(self) {
+        let head = &self.values[0..5];
+        dbg!(head);
     }
  }
 
