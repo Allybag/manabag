@@ -26,6 +26,20 @@ pub fn softmax_activate<const C: usize, const R: usize>(matrix: &mut Matrix<f32,
     });
 }
 
+fn clip(value: f32) -> f32 {
+    assert!(value >= 0.0 && value <= 1.0);
+    let epsilon: f32 = 1e-7;
+
+    value.clamp(epsilon, 1.0 - epsilon)
+}
+
+pub fn categorical_loss<const C:usize, const R: usize>(matrix: &Matrix<f32, R, C>, labels: [usize; R]) -> f32 {
+    let confidences: Vec<f32> = matrix.iter().zip(labels.iter()).map(|(row, category)| clip(row[*category])).collect();
+    let negative_log_likelihoods: Vec<f32> = confidences.iter().map(|val| -1.0 * val.ln()).collect();
+    let loss: f32 = negative_log_likelihoods.iter().sum::<f32>() / labels.len() as f32;
+    loss
+}
+
 impl<const INPUTS: usize, const NEURONS: usize> DenseLayer<INPUTS, NEURONS> {
     pub fn new() -> Self {
         DenseLayer {
@@ -48,7 +62,7 @@ impl<const INPUTS: usize, const NEURONS: usize> DenseLayer<INPUTS, NEURONS> {
     }
 
     pub fn activate<const ROWS: usize>(&self, matrix: &mut Matrix<f32, ROWS, NEURONS>) {
-        match (self.activation)
+        match self.activation
         {
             Activation::Relu => relu_activate(matrix),
             Activation::Softmax => softmax_activate(matrix),

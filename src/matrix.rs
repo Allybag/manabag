@@ -89,6 +89,10 @@ impl<T: Value, const R: usize, const C: usize> Matrix<T, R, C> {
         let head = &self.values[0..5];
         dbg!(head);
     }
+
+    pub fn iter(self: &Self) -> impl Iterator<Item = &[T; C]>{
+       self.values.iter()
+    }
  }
 
 impl <T: Value, const R: usize, const C: usize> Add<T> for Matrix<T, R, C> {

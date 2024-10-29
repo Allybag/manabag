@@ -1,7 +1,7 @@
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 use crate::matrix::Matrix;
-use dense_layer::{Activation, DenseLayer};
+use dense_layer::{categorical_loss, Activation, DenseLayer};
 use spiral_data::{*};
 
 pub mod matrix;
@@ -19,5 +19,7 @@ fn main() {
     let inputs = Matrix::new(X);
     let output = dense_two.output(dense_one.output(inputs));
 
-    output.print_head();
+    // output.print_head();
+    let loss = categorical_loss(&output, Y);
+    println!("Loss: {loss}");
 }
