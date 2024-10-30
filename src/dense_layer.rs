@@ -1,4 +1,4 @@
-use crate::matrix::Matrix;
+use crate::simple_matrix::Matrix;
 
 #[derive(Debug)]
 pub enum Activation
@@ -8,21 +8,26 @@ pub enum Activation
 }
 
 #[derive(Debug)]
-pub struct DenseLayer<const INPUTS: usize, const NEURONS: usize> {
-    weights: Matrix<f32, INPUTS, NEURONS>,
-    biases: Matrix<f32, 1, NEURONS>,
-    activation: Activation,
+pub struct DenseLayer {
+    weights: Matrix,
+    biases: Matrix,
 }
 
-pub fn relu_activate<const C: usize, const R: usize>(matrix: &mut Matrix<f32, R, C>) {
+pub fn relu_activate(matrix: &mut Matrix) {
     matrix.transform(| val | { if val > 0.0 { val } else { 0.0 } });
 }
 
-pub fn softmax_activate<const C: usize, const R: usize>(matrix: &mut Matrix<f32, R, C>) {
-    matrix.row_transform(| row | {
-        let exponents = row.map(| val | { val.exp() });
-        let exponent_sum : f32 = exponents.iter().sum();
-        exponents.map(| val | { val / exponent_sum })
+pub fn softmax_activate(matrix: &mut Matrix) {
+    matrix.row_transform(| values, start_index, end_index | {
+        let mut exponent_sum = 0.0;
+        for index in start_index..end_index {
+            values[index] = values[index].exp();
+            exponent_sum += values[index];
+        }
+
+        for index in start_index..end_index {
+            values[index] = values[index] / exponent_sum;
+        }
     });
 }
 
@@ -33,48 +38,53 @@ fn clip(value: f32) -> f32 {
     value.clamp(epsilon, 1.0 - epsilon)
 }
 
-pub fn categorical_loss<const C:usize, const R: usize>(matrix: &Matrix<f32, R, C>, labels: [usize; R]) -> f32 {
-    let confidences: Vec<f32> = matrix.iter().zip(labels.iter()).map(|(row, category)| clip(row[*category])).collect();
+pub fn categorical_loss(matrix: &Matrix, labels: &[usize]) -> f32 {
+    let rows = matrix.rows;
+    let mut confidences = Vec::<f32>::with_capacity(rows);
+    confidences.resize(rows, 0.0);
+    for row in 0..rows {
+        confidences[row] = clip(matrix.at(row, labels[row]))
+    }
+
     let negative_log_likelihoods: Vec<f32> = confidences.iter().map(|val| -1.0 * val.ln()).collect();
     let loss: f32 = negative_log_likelihoods.iter().sum::<f32>() / labels.len() as f32;
     loss
 }
 
-impl<const INPUTS: usize, const NEURONS: usize> DenseLayer<INPUTS, NEURONS> {
+impl DenseLayer {
     pub fn new() -> Self {
         DenseLayer {
-            weights: Matrix::new([[f32::default(); NEURONS]; INPUTS]),
-            biases: Matrix::new([[f32::default(); NEURONS]]),
-            activation: Activation::Relu,
+            weights: Matrix::new([[]]),
+            biases: Matrix::new([[]]),
         }
     }
 
-    pub fn set_weights(&mut self, weights: [[f32; NEURONS]; INPUTS]) {
+    pub fn set_weights<const NEURONS: usize, const INPUTS: usize>(&mut self, weights: [[f32; NEURONS]; INPUTS]) {
         self.weights = Matrix::new(weights);
+        self.biases = Matrix::new([[f32::default(); NEURONS]])
     }
 
-    pub fn set_activation(&mut self, activation: Activation) {
-        self.activation = activation;
+    pub fn forward(&self, inputs: Matrix) -> Matrix {
+        inputs * self.weights.clone() + self.biases.clone()
+    }
+}
+
+pub struct ActivationLayer {
+    activation: Activation,
+}
+
+impl ActivationLayer {
+    pub fn new(activation: Activation) -> Self {
+        ActivationLayer { activation }
     }
 
-    pub fn forward<const ROWS: usize>(&self, inputs: Matrix<f32, ROWS, INPUTS>) -> Matrix<f32, ROWS, NEURONS> {
-        self.weights * inputs + self.biases
-    }
-
-    pub fn activate<const ROWS: usize>(&self, matrix: &mut Matrix<f32, ROWS, NEURONS>) {
+    pub fn forward(&self, matrix: &mut Matrix) {
         match self.activation
         {
             Activation::Relu => relu_activate(matrix),
             Activation::Softmax => softmax_activate(matrix),
         }
     }
-
-    pub fn output<const ROWS: usize>(self, inputs: Matrix<f32, ROWS, INPUTS>)  -> Matrix<f32, ROWS, NEURONS> {
-        let mut mat = self.forward(inputs);
-        self.activate(&mut mat);
-        mat
-    }
-
 }
 
 #[cfg(test)]

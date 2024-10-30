@@ -2,15 +2,15 @@ use std::ops::{Add, Mul};
 
 // TODO: We definitely should not be regularly copying matrices
 #[derive(Debug, Clone)]
-pub struct SimpleMatrix {
-    rows: usize,
-    cols: usize,
+pub struct Matrix {
+    pub rows: usize,
+    pub cols: usize,
     values: Vec<f32>,
 }
 
-impl SimpleMatrix {
+impl Matrix {
     pub fn new<const R: usize, const C: usize>(values: [[f32; C]; R]) -> Self {
-        SimpleMatrix {
+        Matrix {
             rows: R,
             cols: C,
             values: {
@@ -26,7 +26,7 @@ impl SimpleMatrix {
         }
     }
 
-    pub fn transpose(self) -> SimpleMatrix {
+    pub fn transpose(self) -> Matrix {
         let mut values = self.values.clone();
 
         for row in 0..self.rows {
@@ -37,7 +37,7 @@ impl SimpleMatrix {
             }
         }
 
-        SimpleMatrix { rows: self.cols, cols: self.rows, values }
+        Matrix { rows: self.cols, cols: self.rows, values }
     }
 
     pub fn transform(&mut self, f: fn(f32) -> f32) {
@@ -49,14 +49,12 @@ impl SimpleMatrix {
         }
     }
 
-    pub fn row_transform(&mut self, f: fn(&[f32]) -> Vec<f32>) {
+    // This takes a mutable function rather than a mapping function
+    // to avoid allocating some sort of vector of results each call
+    pub fn row_transform(&mut self, f: fn(&mut Vec<f32>, usize, usize) -> ()) {
         for row in 0..self.rows {
-            let mut index = self.index(row, 0);
-            let result = f(&self.values[index..index + self.cols]);
-            for val in result.iter() {
-                self.values[index] = *val;
-                index += 1;
-            }
+            let index = self.index(row, 0);
+            f(&mut self.values, index, index + self.cols);
         }
     }
 
@@ -65,13 +63,17 @@ impl SimpleMatrix {
         dbg!(head);
     }
 
+    pub fn at(&self, row: usize, col: usize) -> f32 {
+        self.values[self.index(row, col)]
+    }
+
     fn index(&self, row: usize, col: usize) -> usize {
         row * self.cols + col
     }
- }
+}
 
-impl Add<f32> for SimpleMatrix {
-    type Output = SimpleMatrix;
+impl Add<f32> for Matrix {
+    type Output = Matrix;
 
     fn add(self, other: f32) -> Self::Output {
         let mut values = self.values.clone();
@@ -83,14 +85,14 @@ impl Add<f32> for SimpleMatrix {
             }
         }
 
-        SimpleMatrix { rows: self.rows, cols: self.cols, values }
+        Matrix { rows: self.rows, cols: self.cols, values }
     }
 }
 
-impl Mul<f32> for SimpleMatrix {
-    type Output = SimpleMatrix;
+impl Mul<f32> for Matrix {
+    type Output = Matrix;
 
-    fn mul(self, other: f32) -> SimpleMatrix {
+    fn mul(self, other: f32) -> Matrix {
         let mut values = self.values.clone();
 
         for col in 0..self.cols {
@@ -100,18 +102,32 @@ impl Mul<f32> for SimpleMatrix {
             }
         }
 
-        SimpleMatrix { rows: self.rows, cols: self.cols, values }
+        Matrix { rows: self.rows, cols: self.cols, values }
     }
 }
 
 // TODO: Add vector to matrix
-impl Add<SimpleMatrix> for SimpleMatrix
+impl Add<Matrix> for Matrix
 {
-    type Output = SimpleMatrix;
+    type Output = Matrix;
 
-    fn add(self, other: SimpleMatrix) -> SimpleMatrix {
+    fn add(self, other: Matrix) -> Matrix {
+        // Adding a vector to a matrix
+        if self.cols == other.cols && other.rows == 1 {
+            let mut values = self.values.clone();
+
+            for col in 0..self.cols {
+                for row in 0..self.rows {
+                    let index = self.index(row, col);
+                    values[index] = self.values[index] + other.values[col];
+                }
+            }
+            
+            return Matrix { rows: self.rows, cols: self.cols, values }
+        }
+
         if self.cols != other.cols || self.rows != other.rows {
-            panic!("SimpleMatrix::Add self {0},{1} vs other {2},{3}", self.cols, self.rows, other.cols, other.rows);
+            panic!("Matrix::Add self ({0},{1}) vs other ({2},{3})", self.rows, self.cols, other.rows, other.cols);
         }
 
         let mut values = self.values.clone();
@@ -123,16 +139,16 @@ impl Add<SimpleMatrix> for SimpleMatrix
             }
         }
 
-        SimpleMatrix { rows: self.rows, cols: self.cols, values }
+        Matrix { rows: self.rows, cols: self.cols, values }
     }
 }
 
-impl Mul<SimpleMatrix> for SimpleMatrix {
-    type Output = SimpleMatrix;
+impl Mul<Matrix> for Matrix {
+    type Output = Matrix;
 
-    fn mul(self, other: SimpleMatrix) -> Self::Output {
+    fn mul(self, other: Matrix) -> Self::Output {
         if self.cols != other.rows {
-            panic!("SimpleMatrix::Mul self {0},{1} vs other {2},{3}", self.cols, self.rows, other.cols, other.rows);
+            panic!("Matrix::Mul self ({0},{1}) vs other ({2},{3})", self.rows, self.cols, other.rows, other.cols);
         }
 
         let mut values = Vec::<f32>::with_capacity(self.rows * other.cols);
@@ -144,12 +160,11 @@ impl Mul<SimpleMatrix> for SimpleMatrix {
                 for i in 0..self.cols {
                     let result = self.values[self.index(row, i)] * other.values[other.index(i, col)];
                     values[index] = values[index] + result;
-                    dbg!("{}, {}", result, values[index]);
                 }
             }
         }
 
-        SimpleMatrix { rows: self.rows, cols: other.cols, values }
+        Matrix { rows: self.rows, cols: other.cols, values }
     }
 }
 
@@ -163,8 +178,8 @@ impl Feq for f32 {
     }
 }
 
-impl PartialEq<SimpleMatrix> for SimpleMatrix {
-    fn eq(&self, other: &SimpleMatrix) -> bool {
+impl PartialEq<Matrix> for Matrix {
+    fn eq(&self, other: &Matrix) -> bool {
         if self.rows != other.rows || self.cols != other.cols {
             return false
         }
@@ -185,38 +200,38 @@ mod tests {
 
     #[test]
     fn scalar_addition() {
-        let mat = SimpleMatrix::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+        let mat = Matrix::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
         let result = mat + 2.0;
 
-        assert_eq!(result, SimpleMatrix::new([[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]]));
+        assert_eq!(result, Matrix::new([[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]]));
     }
 
     #[test]
     fn scalar_multiplication() {
-        let mat = SimpleMatrix::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+        let mat = Matrix::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
         let result = mat * 2.0;
 
-        assert_eq!(result, SimpleMatrix::new([[2.0, 4.0, 6.0], [8.0, 10.0, 12.0]]));
+        assert_eq!(result, Matrix::new([[2.0, 4.0, 6.0], [8.0, 10.0, 12.0]]));
     }
 
     #[test]
     fn matrix_addition() {
-        let mat = SimpleMatrix::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
-        let other = SimpleMatrix::new([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]]);
+        let mat = Matrix::new([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+        let other = Matrix::new([[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]]);
         let result = mat + other;
 
-        assert_eq!(result, SimpleMatrix::new([[2.0, 3.0, 4.0], [6.0, 7.0, 8.0]]));
+        assert_eq!(result, Matrix::new([[2.0, 3.0, 4.0], [6.0, 7.0, 8.0]]));
     }
 
     #[test]
     fn matrix_multiplication() {
-        let mat = SimpleMatrix::new([[1.0, 2.0, 3.0, 2.5], [2.0, 5.0, -1.0, 2.0], [-1.5, 2.7, 3.3, -0.8]]);
-        let other = SimpleMatrix::new([
+        let mat = Matrix::new([[1.0, 2.0, 3.0, 2.5], [2.0, 5.0, -1.0, 2.0], [-1.5, 2.7, 3.3, -0.8]]);
+        let other = Matrix::new([
             [0.2, 0.8, -0.5, 1.0],
             [0.5, -0.91, 0.26, -0.5],
             [-0.26, -0.27, 0.17, 0.87]]).transpose();
         let result = mat * other;
 
-        assert_eq!(result, SimpleMatrix::new([[2.8, -1.79, 1.885], [6.9, -4.81, -0.3], [-0.59, -1.949, -0.474]]));
+        assert_eq!(result, Matrix::new([[2.8, -1.79, 1.885], [6.9, -4.81, -0.3], [-0.59, -1.949, -0.474]]));
     }
 }
