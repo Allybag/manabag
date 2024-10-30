@@ -5,6 +5,7 @@ use dense_layer::{categorical_loss, Activation, DenseLayer};
 use spiral_data::{*};
 
 pub mod matrix;
+pub mod simple_matrix;
 pub mod dense_layer;
 pub mod spiral_data;
 
