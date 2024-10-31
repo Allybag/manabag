@@ -11,6 +11,10 @@ pub enum Activation
 pub struct DenseLayer {
     weights: Matrix,
     biases: Matrix,
+    inputs: Matrix,
+    pub dweights: Matrix,
+    pub dbiases: Matrix,
+    pub dinputs: Matrix,
 }
 
 pub fn relu_activate(matrix: &mut Matrix) {
@@ -56,6 +60,10 @@ impl DenseLayer {
         DenseLayer {
             weights: Matrix::new([[]]),
             biases: Matrix::new([[]]),
+            inputs: Matrix::new([[]]),
+            dweights: Matrix::new([[]]),
+            dbiases: Matrix::new([[]]),
+            dinputs: Matrix::new([[]]),
         }
     }
 
@@ -64,25 +72,68 @@ impl DenseLayer {
         self.biases = Matrix::new([[f32::default(); NEURONS]])
     }
 
-    pub fn forward(&self, inputs: Matrix) -> Matrix {
+    pub fn forward(&mut self, inputs: Matrix) -> Matrix {
+        self.inputs = inputs.clone();
         inputs * self.weights.clone() + self.biases.clone()
+    }
+
+    pub fn backward(&mut self, dvalues: Matrix) {
+        self.dweights = self.inputs.clone().transpose() * dvalues.clone();
+        dbg!("{}", &self.dweights);
     }
 }
 
 pub struct ActivationLayer {
     activation: Activation,
+    inputs: Matrix,
+    pub dinputs: Matrix,
 }
 
 impl ActivationLayer {
     pub fn new(activation: Activation) -> Self {
-        ActivationLayer { activation }
+        ActivationLayer {
+            activation: activation,
+            inputs: Matrix::new([[]]),
+            dinputs: Matrix::new([[]]),
+        }
     }
 
-    pub fn forward(&self, matrix: &mut Matrix) {
+    pub fn forward(&mut self, matrix: &mut Matrix) {
+        self.inputs = matrix.clone();
         match self.activation
         {
             Activation::Relu => relu_activate(matrix),
             Activation::Softmax => softmax_activate(matrix),
+        }
+    }
+
+    pub fn backward(&mut self, matrix: Matrix, optional_labels: Option<&[usize]>) {
+        self.dinputs = matrix.clone();
+        match self.activation
+        {
+            Activation::Relu => {
+                assert!(optional_labels.is_none());
+                relu_activate(&mut self.dinputs);
+            }
+            Activation::Softmax => {
+                match optional_labels
+                {
+                    None => panic!("Softmax activation expects labels"),
+                    Some(labels) => {
+                        let rows = self.dinputs.rows;
+                        assert!(labels.len() == rows);
+                        for row in 0..rows {
+                            let col = labels[row];
+                            let val = self.dinputs.at(row, col);
+                            self.dinputs.set(val - 1.0, row, col);
+                        }
+
+                        // TODO: I have deliberately been ignoring cloning
+                        // and references and that, but this is particularly mad
+                        self.dinputs = self.dinputs.clone() * (1.0 / rows as f32);
+                    }
+                }
+            }
         }
     }
 }

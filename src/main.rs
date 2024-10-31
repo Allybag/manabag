@@ -10,20 +10,25 @@ pub mod spiral_data;
 
 fn main() {
     let mut dense_one = DenseLayer::new();
-    let relu = ActivationLayer::new(Activation::Relu);
+    let mut relu = ActivationLayer::new(Activation::Relu);
     dense_one.set_weights(LAYER_ONE_WEIGHTS);
 
     let mut dense_two = DenseLayer::new();
-    let softmax = ActivationLayer::new(Activation::Softmax);
+    let mut softmax = ActivationLayer::new(Activation::Softmax);
     dense_two.set_weights(LAYER_TWO_WEIGHTS);
 
+    // Forward pass
     let inputs = Matrix::new(X);
     let mut first = dense_one.forward(inputs);
     relu.forward(&mut first);
     let mut output = dense_two.forward(first);
     softmax.forward(&mut output);
 
-    // output.print_head();
     let loss = categorical_loss(&output, &Y);
+
+    // Backward pass
+    softmax.backward(output, Some(&Y));
+    dense_two.backward(softmax.dinputs);
+
     println!("Loss: {loss}");
 }

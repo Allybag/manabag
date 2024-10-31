@@ -67,6 +67,11 @@ impl Matrix {
         self.values[self.index(row, col)]
     }
 
+    pub fn set(&mut self, val: f32, row: usize, col: usize) {
+        let index = self.index(row, col);
+        self.values[index] = val;
+    }
+
     fn index(&self, row: usize, col: usize) -> usize {
         row * self.cols + col
     }
