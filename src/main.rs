@@ -29,6 +29,8 @@ fn main() {
     // Backward pass
     softmax.backward(output, Some(&Y));
     dense_two.backward(softmax.dinputs);
+    relu.backward(dense_two.dinputs, None);
+    dense_one.backward(relu.dinputs);
 
     println!("Loss: {loss}");
 }

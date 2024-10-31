@@ -5,7 +5,7 @@ use std::ops::{Add, Mul};
 pub struct Matrix {
     pub rows: usize,
     pub cols: usize,
-    values: Vec<f32>,
+    pub values: Vec<f32>,
 }
 
 impl Matrix {
@@ -111,7 +111,6 @@ impl Mul<f32> for Matrix {
     }
 }
 
-// TODO: Add vector to matrix
 impl Add<Matrix> for Matrix
 {
     type Output = Matrix;

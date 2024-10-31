@@ -55,6 +55,20 @@ pub fn categorical_loss(matrix: &Matrix, labels: &[usize]) -> f32 {
     loss
 }
 
+fn col_sum(matrix: &Matrix) -> Matrix {
+    let cols = matrix.cols;
+    let mut values = Vec::<f32>::with_capacity(cols);
+    values.resize(cols, 0.0);
+
+    for row in 0..matrix.rows {
+        for col in 0..cols {
+            values[col] += matrix.at(row, col);
+        }
+    }
+
+    Matrix { rows: 1, cols: cols, values }
+}
+
 impl DenseLayer {
     pub fn new() -> Self {
         DenseLayer {
@@ -79,7 +93,8 @@ impl DenseLayer {
 
     pub fn backward(&mut self, dvalues: Matrix) {
         self.dweights = self.inputs.clone().transpose() * dvalues.clone();
-        dbg!("{}", &self.dweights);
+        self.dbiases = col_sum(&dvalues);
+        self.dinputs = dvalues * self.weights.clone().transpose();
     }
 }
 
@@ -113,7 +128,13 @@ impl ActivationLayer {
         {
             Activation::Relu => {
                 assert!(optional_labels.is_none());
-                relu_activate(&mut self.dinputs);
+                for row in 0..self.dinputs.rows {
+                    for col in 0..self.dinputs.cols {
+                        if self.inputs.at(row, col) < 0.0 {
+                            self.dinputs.set(0.0, row, col);
+                        }
+                    }
+                }
             }
             Activation::Softmax => {
                 match optional_labels
