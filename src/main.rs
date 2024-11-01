@@ -1,7 +1,7 @@
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 use crate::simple_matrix::Matrix;
-use dense_layer::{categorical_loss, Activation, DenseLayer, ActivationLayer};
+use dense_layer::{categorical_loss, get_predictions, calc_accuracy, Activation, DenseLayer, ActivationLayer};
 use spiral_data::{*};
 
 pub mod simple_matrix;
@@ -25,6 +25,8 @@ fn main() {
     softmax.forward(&mut output);
 
     let loss = categorical_loss(&output, &Y);
+    let predictions = get_predictions(&output);
+    let accuracy = calc_accuracy(&predictions, &Y);
 
     // Backward pass
     softmax.backward(output, Some(&Y));
@@ -32,5 +34,5 @@ fn main() {
     relu.backward(dense_two.dinputs, None);
     dense_one.backward(relu.dinputs);
 
-    println!("Loss: {loss}");
+    println!("Accuracy: {accuracy}, Loss: {loss}");
 }

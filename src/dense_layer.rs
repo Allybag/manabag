@@ -69,6 +69,36 @@ fn col_sum(matrix: &Matrix) -> Matrix {
     Matrix { rows: 1, cols: cols, values }
 }
 
+pub fn get_predictions(matrix: &Matrix) -> Vec<usize> {
+    let rows = matrix.rows;
+    let mut predictions = Vec::<usize>::with_capacity(rows);
+    predictions.resize(rows, matrix.cols + 1);
+    for row in 0..rows {
+        // Each value should be between 0.0 and 1.0
+        let mut max = 0.0;
+        for col in 0..matrix.cols {
+            let val = matrix.at(row, col);
+            assert!(val >= 0.0 && val <= 1.0);
+            if val >= max {
+                predictions[row] = col;
+                max = val;
+            }
+        }
+    }
+
+    predictions
+}
+
+pub fn calc_accuracy(predictions: &Vec<usize>, labels: &[usize]) -> f32 {
+    assert!(predictions.len() == labels.len());
+    let mut correct_count = 0;
+    for index in 0..predictions.len() {
+        correct_count += if predictions[index] == labels[index] { 1 } else { 0 };
+    }
+
+    correct_count as f32 / predictions.len() as f32
+}
+
 impl DenseLayer {
     pub fn new() -> Self {
         DenseLayer {
