@@ -17,22 +17,33 @@ fn main() {
     let mut softmax = ActivationLayer::new(Activation::Softmax);
     dense_two.set_weights(LAYER_TWO_WEIGHTS);
 
-    // Forward pass
-    let inputs = Matrix::new(X);
-    let mut first = dense_one.forward(inputs);
-    relu.forward(&mut first);
-    let mut output = dense_two.forward(first);
-    softmax.forward(&mut output);
+    for epoch in 0..10001 {
+        // Forward pass
+        let inputs = Matrix::new(X);
+        let mut first = dense_one.forward(inputs);
+        relu.forward(&mut first);
+        let mut output = dense_two.forward(first);
+        softmax.forward(&mut output);
 
-    let loss = categorical_loss(&output, &Y);
-    let predictions = get_predictions(&output);
-    let accuracy = calc_accuracy(&predictions, &Y);
+        let loss = categorical_loss(&output, &Y);
+        let predictions = get_predictions(&output);
+        let accuracy = calc_accuracy(&predictions, &Y);
 
-    // Backward pass
-    softmax.backward(output, Some(&Y));
-    dense_two.backward(softmax.dinputs);
-    relu.backward(dense_two.dinputs, None);
-    dense_one.backward(relu.dinputs);
+        // Backward pass
+        softmax.backward(output, Some(&Y));
+        dense_two.backward(softmax.dinputs.clone());
+        relu.backward(dense_two.dinputs.clone(), None);
+        dense_one.backward(relu.dinputs.clone());
 
-    println!("Accuracy: {accuracy}, Loss: {loss}");
+        if epoch == 1 || epoch % 1000 == 0 {
+            println!("Epoch {epoch}: Accuracy: {accuracy}, Loss: {loss}");
+        }
+
+        let learning_rate = -1.0;
+        dense_two.weights = dense_two.weights + dense_two.dweights.clone() * learning_rate;
+        dense_two.biases = dense_two.biases + dense_two.dbiases.clone() * learning_rate;
+        dense_one.weights = dense_one.weights + dense_one.dweights.clone() * learning_rate;
+        dense_one.biases = dense_one.biases + dense_one.dbiases.clone() * learning_rate;
+
+    }
 }

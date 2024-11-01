@@ -9,8 +9,8 @@ pub enum Activation
 
 #[derive(Debug)]
 pub struct DenseLayer {
-    weights: Matrix,
-    biases: Matrix,
+    pub weights: Matrix,
+    pub biases: Matrix,
     inputs: Matrix,
     pub dweights: Matrix,
     pub dbiases: Matrix,
@@ -23,9 +23,17 @@ pub fn relu_activate(matrix: &mut Matrix) {
 
 pub fn softmax_activate(matrix: &mut Matrix) {
     matrix.row_transform(| values, start_index, end_index | {
+        let mut max_val = f32::NEG_INFINITY;
+        for index in start_index..end_index {
+            let val = values[index];
+            if val > max_val {
+                max_val = val
+            }
+        }
+
         let mut exponent_sum = 0.0;
         for index in start_index..end_index {
-            values[index] = values[index].exp();
+            values[index] = (values[index] - max_val).exp();
             exponent_sum += values[index];
         }
 
@@ -36,7 +44,7 @@ pub fn softmax_activate(matrix: &mut Matrix) {
 }
 
 fn clip(value: f32) -> f32 {
-    assert!(value >= 0.0 && value <= 1.0);
+    assert!(value >= 0.0 && value <= 1.0, "clip: value was {}", value);
     let epsilon: f32 = 1e-7;
 
     value.clamp(epsilon, 1.0 - epsilon)
